@@ -113,7 +113,7 @@ main (int argc, char ** argv)
 	 * Next, construct the network address.
 	 */
 	in_address.sin_family = AF_INET;
-	in_address.sin_addr.s_addr = htonl (0);
+	in_address.sin_addr.s_addr = htonl (0x7f000001);
 	in_address.sin_port = htons(port);
 	address = (void *) &(in_address);
 	address_size = sizeof (in_address);
