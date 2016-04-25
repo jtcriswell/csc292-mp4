@@ -56,21 +56,18 @@ handleConnection (int s) {
 			exit (1);
 		}
 
-		write (STDOUT_FILENO, "Read0\n", 6);
 		/* Read data from stdin and write it to the socket */
 		if (FD_ISSET (STDIN_FILENO, &readSet)) {
-			write (STDOUT_FILENO, "Read1\n", 6);
 			size = read (STDIN_FILENO, buffer, 1024);
 			write (s, buffer, size);
 		}
 
 		/* Read data from the socket and write it to stdout */
 		if (FD_ISSET (s, &readSet)) {
-			write (STDOUT_FILENO, "Read2\n", 6);
 			size = read (s, buffer, 1024);
 			write (STDOUT_FILENO, buffer, size);
 		}
-	} while (1);
+	} while (size > 0);
 
 	return;
 }
