@@ -31,11 +31,16 @@ int usage (char * name);
 
 void
 handleConnection (int s) {
-	/* Size of data read */
-	int size;
+	/* Size of data read from local user*/
+	int localsize;
+
+	/* Size of data read from remote server */
+	int remotesize;
 
 	/*
-	 * Loop forever and echo back what we read.
+	 * Loop until both sides have either closed their file descriptors or
+	 * experience some sort of error.  In the meantime, read data from one
+	 * end and print it on the other.
 	 */
 	unsigned char done = 0;
 	do {
@@ -58,16 +63,20 @@ handleConnection (int s) {
 
 		/* Read data from stdin and write it to the socket */
 		if (FD_ISSET (STDIN_FILENO, &readSet)) {
-			size = read (STDIN_FILENO, buffer, 1024);
-			write (s, buffer, size);
+			localsize = read (STDIN_FILENO, buffer, 1024);
+			if (localsize) {
+				write (s, buffer, localsize);
+			} else {
+				shutdown (s, SHUT_WR);
+			}
 		}
 
 		/* Read data from the socket and write it to stdout */
 		if (FD_ISSET (s, &readSet)) {
-			size = read (s, buffer, 1024);
-			write (STDOUT_FILENO, buffer, size);
+			remotesize = read (s, buffer, 1024);
+			write (STDOUT_FILENO, buffer, remotesize);
 		}
-	} while (size > 0);
+	} while (remotesize > 0);
 
 	return;
 }
