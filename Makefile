@@ -10,4 +10,4 @@ server: server.c
 	$(CC) -g -O2 -o server server.c
 
 clean:
-	rm -f inject server
+	rm -f inject server client
