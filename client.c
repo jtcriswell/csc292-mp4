@@ -31,18 +31,26 @@ int usage (char * name);
 
 void
 handleConnection (int s) {
-	/* Size of data read from local user*/
-	int localsize;
+	/* Number of file descriptors to check */
+	int numfds;
 
-	/* Size of data read from remote server */
-	int remotesize;
+	/*
+	 * Determine the number of file descriptors to check.  Remember that
+	 * select() takes the largest descriptor number plus one.
+	 */
+	if (s > STDIN_FILENO) {
+		numfds = s + 1;
+	} else {
+		numfds = STDIN_FILENO + 1;
+	}
 
 	/*
 	 * Loop until both sides have either closed their file descriptors or
 	 * experience some sort of error.  In the meantime, read data from one
 	 * end and print it on the other.
 	 */
-	unsigned char done = 0;
+	unsigned char inputDone = 0;
+	unsigned char serverDone = 0;
 	do {
 		/* Clear out the read set */
 		fd_set readSet;
@@ -52,31 +60,43 @@ handleConnection (int s) {
 		 * Set the socket and stdin as file descriptors on which we
   		 * will wait for data to be available for reading.
   		 */
-		FD_SET (STDIN_FILENO, &readSet);
+		if (!inputDone) FD_SET (STDIN_FILENO, &readSet);
 		FD_SET (s, &readSet);
 
 		/* Wait for new data */
-		if ((select (s + 1, &readSet, NULL, NULL, NULL)) == -1) {
+		if ((select (numfds, &readSet, NULL, NULL, NULL)) == -1) {
 			perror ("Select failed");
 			exit (1);
 		}
 
-		/* Read data from stdin and write it to the socket */
-		if (FD_ISSET (STDIN_FILENO, &readSet)) {
-			localsize = read (STDIN_FILENO, buffer, 1024);
-			if (localsize) {
-				write (s, buffer, localsize);
+		/* Read data from the socket and write it to stdout */
+		if (FD_ISSET (s, &readSet)) {
+			/* Size of data read from remote server */
+			int remotesize = 1;
+
+			remotesize = read (s, buffer, 1024);
+			if (remotesize > 0) {
+				write (STDOUT_FILENO, buffer, remotesize);
 			} else {
-				shutdown (s, SHUT_WR);
+				serverDone = 1;
 			}
 		}
 
-		/* Read data from the socket and write it to stdout */
-		if (FD_ISSET (s, &readSet)) {
-			remotesize = read (s, buffer, 1024);
-			write (STDOUT_FILENO, buffer, remotesize);
+		/* Read data from stdin and write it to the socket */
+		if (FD_ISSET (STDIN_FILENO, &readSet)) {
+			/* Size of data read from local user*/
+			int localsize = 1;
+
+			localsize = read (STDIN_FILENO, buffer, 1024);
+			if (localsize > 0) {
+				write (s, buffer, localsize);
+			} else {
+				shutdown (s, SHUT_WR);
+				inputDone = 1;
+				FD_CLR (STDIN_FILENO, &readSet);
+			}
 		}
-	} while (remotesize > 0);
+	} while (!serverDone);
 
 	return;
 }
